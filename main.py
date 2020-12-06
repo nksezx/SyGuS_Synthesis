@@ -14,6 +14,8 @@ def Extend(Stmts,Productions):
         elif Productions.has_key(Stmts[i]):
             for extended in Productions[Stmts[i]]:
                 ret.append(Stmts[0:i]+[extended]+Stmts[i+1:])
+        if len(ret) > 0:
+            return ret
     return ret
 
 def stripComments(bmFile):
