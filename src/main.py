@@ -1,8 +1,9 @@
 import sys
 import sexp
 import pprint
+
+import check
 import gen_guard
-import translator
 import output_expr
 
 def stripComments(bmFile):
@@ -39,3 +40,18 @@ if __name__ == '__main__':
                 Productions[NTName].append(str(NT[1])) # deal with ('Int',0). You can also utilize type information, but you will suffer from these tuples.
             else:
                 Productions[NTName].append(NT)
+
+    check.extractBmExpr(bmExpr)    
+    exprs = output_expr.getExpr(Type, Productions)
+    guardGenerator = gen_guard.genGuard(Type, Productions)
+    conds = []
+    while True:
+        guards = guardGenerator.next()
+        for expr in exprs:
+            model = check.checkCondsforExpr(conds, expr)
+            
+            P = []
+            for guard in guards:
+                res = check.checkGuardForCounterExample(guard, model)
+                if res:
+                    

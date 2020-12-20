@@ -1,4 +1,6 @@
+import check
 import translator
+
 
 exprWithDiffNumOp = {}
 atomicExpr = []
@@ -36,9 +38,9 @@ def genExpr(Type, Productions):
         exprWithDiffNumOp[numOfOp] = []
 
 
-def biSearch(R, finalR, bmExpr):
-    if translator.checkExpr(R + finalR, bmExpr) == None:
-        if translator.checkExpr(finalR, bmExpr) != None:
+def biSearch(R, finalR):
+    if check.checkExpr(R + finalR) == None:
+        if check.checkExpr(finalR) != None:
             if len(R) == 1:
                 return R
 
@@ -46,24 +48,22 @@ def biSearch(R, finalR, bmExpr):
             leftR = R[:mid]
             rightR = R[mid:]
 
-            leftResult = biSearch(leftR, finalR + rightR, bmExpr)
-            rightResult = biSearch(rightR, finalR + leftResult, bmExpr)
-            if translator.checkExpr(rightResult, bmExpr) == None:
+            leftResult = biSearch(leftR, finalR + rightR)
+            rightResult = biSearch(rightR, finalR + leftResult)
+            if check.checkExpr(rightResult) == None:
                 return rightResult
             return leftResult + rightResult
         else:
             return finalR
 
 
-def getExpr(Type, Productions, bmExpr):
+def getExpr(Type, Productions):
 
     exprGenerator = genExpr(Type, Productions)
     exprSet = []
 
     while True:
         exprSet.extend(exprGenerator.next())
-        finalExprSet = biSearch(exprSet, [], bmExpr)
-        l = len(finalExprSet)
-        print(finalExprSet)
+        finalExprSet = biSearch(exprSet, [])
         if finalExprSet != []:
-            break
+            return finalExprSet
