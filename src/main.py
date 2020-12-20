@@ -1,6 +1,7 @@
 import sys
 import sexp
 import pprint
+import gen_guard
 import translator
 import output_expr
 
@@ -38,5 +39,3 @@ if __name__ == '__main__':
                 Productions[NTName].append(str(NT[1])) # deal with ('Int',0). You can also utilize type information, but you will suffer from these tuples.
             else:
                 Productions[NTName].append(NT)
-    
-    output_expr.getExpr(Type, Productions, bmExpr)

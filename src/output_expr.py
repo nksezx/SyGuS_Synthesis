@@ -16,8 +16,12 @@ def classifyProductions(Type, Productions):
                 atomicExpr.append(elm)
             elif elm[0] != 'ite':
                 arithExpr.append(elm)
+    return (atomicExpr, arithExpr)
 
-def genExpr():
+def genExpr(Type, Productions):
+    classifyProductions(Type, Productions)
+    exprWithDiffNumOp[0] = atomicExpr
+
     numOfOp = 0
     while numOfOp < 100:
         if numOfOp != 0:
@@ -53,9 +57,7 @@ def biSearch(R, finalR, bmExpr):
 
 def getExpr(Type, Productions, bmExpr):
 
-    classifyProductions(Type, Productions)
-    exprWithDiffNumOp[0] = atomicExpr
-    exprGenerator = genExpr()
+    exprGenerator = genExpr(Type, Productions)
     exprSet = []
 
     while True:
