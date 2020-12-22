@@ -39,7 +39,7 @@ def genExpr(Type, Productions):
 
 
 def biSearch(R, finalR):
-    if check.checkExpr(R + finalR) == None:
+    if check.checkExpr(R + finalR) == None: # TODO
         if check.checkExpr(finalR) != None:
             if len(R) == 1:
                 return R

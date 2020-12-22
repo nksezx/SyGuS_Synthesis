@@ -1,10 +1,12 @@
 import sys
 import sexp
+import copy
 import pprint
 
 import check
 import gen_guard
 import output_expr
+import optimization
 
 def stripComments(bmFile):
     noComments = '('
@@ -48,10 +50,24 @@ if __name__ == '__main__':
     while True:
         guards = guardGenerator.next()
         for expr in exprs:
-            model = check.checkCondsforExpr(conds, expr)
-            
-            P = []
-            for guard in guards:
-                res = check.checkGuardForCounterExample(guard, model)
-                if res:
-                    
+            conds.append([])
+            while True:
+                counterExample = check.checkCondsforExpr(conds, expr)
+                if counterExample == None:
+                    break
+                S = []
+                for guard in guards:
+                    if check.checkGuardForCounterExample(guard, counterExample):
+                        S.append(guard)
+                P = check.getSatGuardSet(S, [], expr, conds)
+                if P == []:
+                    break
+                flag = []
+                conds_ = []
+                for cond in conds[-1]:
+                    if check.canCover(P, cond) == False:
+                        conds_.append(cond)
+                conds[-1] = copy.deepcopy(conds_)
+                conds[-1].append(P)
+        print(check.synthesis(exprs, conds))
+        exit()
