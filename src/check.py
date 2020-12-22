@@ -1,11 +1,24 @@
 from translator import *
 
+Type = {}
+Productions = {}
 SynFunExpr=[]
 VarDecMap={}
 Constraints=[]
 FunDefMap={}
 VarTable={}
 FunDefineStr = ''
+
+def dfsFindFunCall(funName, c):
+    if type(c) == list:
+        if c[0] == funName:
+            return c[1:]
+        else:
+            lres = dfsFindFunCall(funName, c[1])
+            if lres != None:
+                return lres
+            else: 
+                return dfsFindFunCall(funName, c[2])
 
 def extractBmExpr(bmExpr):
     for expr in bmExpr:
@@ -19,6 +32,31 @@ def extractBmExpr(bmExpr):
             Constraints.append(expr)
         elif expr[0]=='define-fun':
             FunDefMap[expr[1]]=expr
+    
+    # unify the vairable name for function calls in constraint and in specification
+    for c in Constraints:
+        varList = dfsFindFunCall(SynFunExpr[1], c[1])
+        if varList != None:
+            replaceMap = {}
+            for i in range(len(SynFunExpr[2])):
+                replaceMap[SynFunExpr[2][i][0]] = varList[i]
+                SynFunExpr[2][i][0] = varList[i]
+            for productions in SynFunExpr[4]:
+                for i in range(len(productions[2])):
+                    if productions[2][i] in replaceMap.keys():
+                        productions[2][i] = replaceMap[productions[2][i]]
+    
+    for NonTerm in SynFunExpr[4]: #SynFunExpr[4] is the production rules
+        NTName = NonTerm[0]
+        NTType = NonTerm[1]
+        Type[NTName] = NTType
+        #Productions[NTName] = NonTerm[2]
+        Productions[NTName] = []
+        for NT in NonTerm[2]:
+            if type(NT) == tuple:
+                Productions[NTName].append(str(NT[1])) # deal with ('Int',0). You can also utilize type information, but you will suffer from these tuples.
+            else:
+                Productions[NTName].append(NT)
 
     # Declare Var
     for var in VarDecMap:

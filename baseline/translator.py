@@ -114,9 +114,7 @@ def ReadQuery(bmExpr):
             print(spec)
             spec = And(spec)
             self.solver.add(Not(spec))
-            for c in self.solver.assertions():
-                print(c)
-            input()
+            
             if verbose:
                 print("spec:",spec)
 

@@ -1,6 +1,7 @@
 import sys
 import sexp
 import copy
+import time
 import pprint
 
 import check
@@ -21,31 +22,10 @@ if __name__ == '__main__':
     bmExpr = sexp.sexp.parseString(bm, parseAll=True).asList()[0] #Parse string to python list
     # pprint.pprint(bmExpr)
 
-    Type = {}
-    Productions = {}
-    SynFunExpr = []
-
-    for expr in bmExpr:
-        if len(expr)==0:
-            continue
-        elif expr[0]=='synth-fun':
-            SynFunExpr=expr
-    
-    for NonTerm in SynFunExpr[4]: #SynFunExpr[4] is the production rules
-        NTName = NonTerm[0]
-        NTType = NonTerm[1]
-        Type[NTName] = NTType
-        #Productions[NTName] = NonTerm[2]
-        Productions[NTName] = []
-        for NT in NonTerm[2]:
-            if type(NT) == tuple:
-                Productions[NTName].append(str(NT[1])) # deal with ('Int',0). You can also utilize type information, but you will suffer from these tuples.
-            else:
-                Productions[NTName].append(NT)
-
+    start = time.time()
     check.extractBmExpr(bmExpr)    
-    exprs = output_expr.getExpr(Type, Productions)
-    guardGenerator = gen_guard.genGuard(Type, Productions)
+    exprs = output_expr.getExpr(check.Type, check.Productions)
+    guardGenerator = gen_guard.genGuard(check.Type, check.Productions)
     conds = []
     while True:
         guards = guardGenerator.next()
@@ -70,4 +50,5 @@ if __name__ == '__main__':
                 conds[-1] = copy.deepcopy(conds_)
                 conds[-1].append(P)
         print(check.synthesis(exprs, conds))
+        print(time.time()-start)
         exit()
