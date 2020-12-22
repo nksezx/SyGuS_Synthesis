@@ -1,4 +1,4 @@
-from translator import *
+from z3 import *
 
 Type = {}
 Productions = {}
@@ -8,17 +8,6 @@ Constraints=[]
 FunDefMap={}
 VarTable={}
 FunDefineStr = ''
-
-def dfsFindFunCall(funName, c):
-    if type(c) == list:
-        if c[0] == funName:
-            return c[1:]
-        else:
-            lres = dfsFindFunCall(funName, c[1])
-            if lres != None:
-                return lres
-            else: 
-                return dfsFindFunCall(funName, c[2])
 
 def extractBmExpr(bmExpr):
     for expr in bmExpr:
@@ -33,18 +22,22 @@ def extractBmExpr(bmExpr):
         elif expr[0]=='define-fun':
             FunDefMap[expr[1]]=expr
     
-    # unify the vairable name for function calls in constraint and in specification
+    # TODO: discuss the way to unify names
+    # unify the vairable names for function calls in constraints and specification
     for c in Constraints:
-        varList = dfsFindFunCall(SynFunExpr[1], c[1])
-        if varList != None:
-            replaceMap = {}
+        varListInConstraints = dfsFindFunCall(SynFunExpr[1], c[1])
+        if varListInConstraints != None:
+            varNameReplaceMap = {}
+            # change in Fun parameters
             for i in range(len(SynFunExpr[2])):
-                replaceMap[SynFunExpr[2][i][0]] = varList[i]
-                SynFunExpr[2][i][0] = varList[i]
+                varNameReplaceMap[SynFunExpr[2][i][0]] = varListInConstraints[i]
+                SynFunExpr[2][i][0] = varListInConstraints[i]
+            # change in productions
             for productions in SynFunExpr[4]:
                 for i in range(len(productions[2])):
-                    if productions[2][i] in replaceMap.keys():
-                        productions[2][i] = replaceMap[productions[2][i]]
+                    if productions[2][i] in varNameReplaceMap.keys():
+                        productions[2][i] = varNameReplaceMap[productions[2][i]]
+            break
     
     for NonTerm in SynFunExpr[4]: #SynFunExpr[4] is the production rules
         NTName = NonTerm[0]
@@ -67,143 +60,164 @@ def extractBmExpr(bmExpr):
     FuncDefineStr = toString(FuncDefine,ForceBracket = True) # use Force Bracket = True on function definition. MAGIC CODE. DO NOT MODIFY THE ARGUMENT ForceBracket = True.
 
 
-# Check whether the expression set satisfies constraints
+# Check if the expression set satisfies constraints
 # ExprStr: [['+', 'x', 'x'], 'x']
 def checkExpr(ExprSet):
 
-    spec_smt2 = []
-    # Add constraints
-    for constraint in Constraints:
-        spec_smt2.append('(assert %s)'%(toString(constraint[1:])))
-    
+    specList = []
     solver = Solver()
 
+    # Add constraints
+    for constraint in Constraints:
+        specList.append('(assert %s)'%(toString(constraint[1:])))
+    
     for expr in ExprSet:
         FunDefStr = FuncDefineStr[:-1]+' '+expr+FuncDefineStr[-1]
-        spec_smt2.insert(0, FunDefStr)
-        spec_smt2_join='\n'.join(spec_smt2)
-        spec = parse_smt2_string(spec_smt2_join,decls=dict(VarTable))
+        specList.insert(0, FunDefStr)
+
+        spec='\n'.join(specList)
+        spec = parse_smt2_string(spec,decls=dict(VarTable))
         solver.add(Not(And(spec)))
-        spec_smt2.pop(0)
+
+        specList.pop(0)
 
     # check
     res = solver.check()
     if res==unsat:
         return None
     else:
-        model=solver.model()
-        return model
+        return solver.model()
 
 
-def checkCondsforExpr(conds, expr):
+def checkCondsforExpr(condsforExp, expr):
 
     solver = Solver()
-    spec_smt2 = []
+    spec = []
 
+    # Add constraints
+    # Add Function Definition
     FunDefStr = FuncDefineStr[:-1]+' '+expr+FuncDefineStr[-1]
-    spec_smt2.append(FunDefStr)
+    spec.append(FunDefStr)
 
+    # Add Constraints
     for constraint in Constraints:
-        spec_smt2.append('(assert %s)'%(toString(constraint[1:])))
-    spec_smt2_join='\n'.join(spec_smt2)
-    spec = parse_smt2_string(spec_smt2_join,decls=dict(VarTable))
+        spec.append('(assert %s)'%(toString(constraint[1:])))
+
+    spec='\n'.join(spec)
+    spec = parse_smt2_string(spec,decls=dict(VarTable))
     solver.add(And(spec))
     
-    for cond in conds:
+    # Add Condition for Expr
+    for cond in condsforExp:
         if cond != []:
-            cond_smt2 = []
+            condSpec = []
+
             for orCond in cond:
-                cond_or_smt2 = []
+                condOrSpec = []
+
                 if orCond != []:
                     for andCond in orCond:
-                        if andCond[0] == 'T':
-                            continue
-                        cond_or_smt2.append('(assert %s)'%(toString(andCond)))
-                    cond_or_smt2 = '\n'.join(cond_or_smt2)
-                    cond_or_smt2 = parse_smt2_string(cond_or_smt2, decls=dict(VarTable))
-                    cond_smt2.append(And(cond_or_smt2))
-                if cond_smt2 != []:
-                    solver.add(Not(Or(*cond_smt2)))
+                        condOrSpec.append('(assert %s)'%(toString(andCond)))
+
+                    condOrSpec = '\n'.join(condOrSpec)
+                    condOrSpec = parse_smt2_string(condOrSpec, decls=dict(VarTable))
+                    condSpec.append(And(condOrSpec))
+
+                if condSpec != []:
+                    solver.add(Not(Or(*condSpec)))
     
+    # Check
     res = solver.check()
     if res==unsat:
         return None
     else:
-        model=solver.model()
-        return model
+        return solver.model()
+
 
 def checkGuardForCounterExample(guard, model):
+
     solver = Solver()
-    spec_smt2 = []
-    spec_smt2.append('(assert %s)'%(toString(guard)))
+    spec = []
+
+    # Add Constraints
+    spec.append('(assert %s)'%(toString(guard)))
+
     for d in model.decls():
-        constraint = ['=', d.name(), str(model[d])]
-        spec_smt2.append('(assert %s)'%(toString(constraint)))
-    spec_smt2_join = '\n'.join(spec_smt2)
-    spec = parse_smt2_string(spec_smt2_join,decls=dict(VarTable))
+        assignment = ['=', d.name(), str(model[d])]
+        spec.append('(assert %s)'%(toString(assignment)))
+
+    spec = '\n'.join(spec)
+    spec = parse_smt2_string(spec,decls=dict(VarTable))
     solver.add(And(spec))
 
+    # Check
     res = solver.check()
     if res==unsat:
         return False
     else:
         return True
 
-def checkGuardSet(P, expr, conds):
-    solver = Solver()
-    spec_P = []
-    
-    for guard in P:
-        spec_P.append('(assert %s)'%(toString(guard)))
-    spec_P = '\n'.join(spec_P)
-    spec_P = parse_smt2_string(spec_P, decls=dict(VarTable))
-    solver.add(And(spec_P))
 
-    spec_smt2 = []
+# CE: counter-example
+def checkGuardSet(guardsForCE, expr, condsforExpr):
+
+    solver = Solver()
+    spec = []
+    
+    # Add Constraints
+    for guard in guardsForCE:
+        spec.append('(assert %s)'%(toString(guard)))
+    spec = '\n'.join(spec)
+    spec = parse_smt2_string(spec, decls=dict(VarTable))
+    solver.add(And(spec))
+
+    spec = []
     FunDefStr = FuncDefineStr[:-1]+' '+expr+FuncDefineStr[-1]
-    spec_smt2.append(FunDefStr)
+    spec.append(FunDefStr)
 
     for constraint in Constraints:
-        spec_smt2.append('(assert %s)'%(toString(constraint[1:])))
-    spec_smt2 ='\n'.join(spec_smt2)
-    spec_smt2 = parse_smt2_string(spec_smt2,decls=dict(VarTable))
-    solver.add(Not(And(spec_smt2)))
+        spec.append('(assert %s)'%(toString(constraint[1:])))
 
-    for cond in conds:
+    spec ='\n'.join(spec)
+    spec = parse_smt2_string(spec,decls=dict(VarTable))
+    solver.add(Not(And(spec)))
+
+    for cond in condsforExpr:
         if cond != []:
-            cond_smt2 = []
+            condSpec = []
+
             for orCond in cond:
-                cond_or_smt2 = []
+                condOrSpec = []
+
                 if orCond != []:
                     for andCond in orCond:
-                        if andCond[0] == 'T':
-                            continue
-                        cond_or_smt2.append('(assert %s)'%(toString(andCond)))
-                    cond_or_smt2 = '\n'.join(cond_or_smt2)
-                    cond_or_smt2 = parse_smt2_string(cond_or_smt2, decls=dict(VarTable))
-                    cond_smt2.append(And(cond_or_smt2))
-                if cond_smt2 != []:
-                    solver.add(Not(Or(*cond_smt2)))
+                        condOrSpec.append('(assert %s)'%(toString(andCond)))
 
+                    condOrSpec = '\n'.join(condOrSpec)
+                    condOrSpec = parse_smt2_string(condOrSpec, decls=dict(VarTable))
+
+                    condSpec.append(And(condOrSpec))
+
+                if condSpec != []:
+                    solver.add(Not(Or(*condSpec)))
+
+    # Check
     res = solver.check()
     if res == unsat:
         return None
     else:
         return solver.model()
 
+
 def synAndCond(conds):
     if len(conds) == 1:
-        if conds[0][0] == 'T':
-            return None
-        else: 
             return conds
     else:
         res = conds[0]
         for cond in conds[1:]:
-            if cond[0] == 'T':
-                continue
             res = ['and'] + [cond] + [res]
         return res
+
 
 def synOrCond(conds):
     if conds == []:
@@ -216,25 +230,33 @@ def synOrCond(conds):
             res = ['or'] + [cond] + [res]
         return res
 
-def synthesis(exprs, conds):
+
+def synCondForOutputExpr(exprs, conds):
+
+    # synthesis from last expr
     ans = exprs[-1]
     for i in range(len(exprs)-1, -1, -1):
         C = []
+
         for orCond in conds[i]:
             C.append(synAndCond(orCond))
+
         cond = synOrCond(C)
         if cond == None:
             ans = exprs[i]
         else: ans = ['ite', cond, exprs[i], ans]
 
+    # check Answer
     FunDefStr = FuncDefineStr[:-1]+' '+toString(ans)+FuncDefineStr[-1]
-    spec_smt2=[FunDefStr]
+    spec=[FunDefStr]
+
     for constraint in Constraints:
-        spec_smt2.append('(assert %s)'%(toString(constraint[1:])))
-    spec_smt2='\n'.join(spec_smt2)
-    spec = parse_smt2_string(spec_smt2,decls=dict(VarTable))
+        spec.append('(assert %s)'%(toString(constraint[1:])))
+
+    spec='\n'.join(spec)
+    spec = parse_smt2_string(spec,decls=dict(VarTable))
     spec = And(spec)
-    
+
     solver = Solver()
     solver.add(Not(spec))
 
@@ -244,43 +266,96 @@ def synthesis(exprs, conds):
     else:
         return 'Failed.'
 
-def getSatGuardSet(S, finalS, expr, guards):
+
+# binary search a smallest satisfied guards set
+def getSatGuardSet(waitS, finalS, expr, guards):
     if checkGuardSet(finalS, expr, guards) == None:
         return []
     else:
-        if len(S) == 1:
-            return S
+        if len(waitS) == 1:
+            return waitS
 
-        mid = len(S) / 2
-        leftS = S[:mid]
-        rightS = S[mid:]
+        mid = len(waitS) / 2
+        leftS = waitS[:mid]
+        rightS = waitS[mid:]
 
         leftResult = getSatGuardSet(leftS, finalS + rightS, expr, guards)
         rightResult = getSatGuardSet(rightS, finalS + leftResult, expr, guards)
         return leftResult + rightResult
 
-def canCover(P, prior):
+# Ex: example
+def canCover(condsForNewEx, condsForPriorEx):
+
     solver = Solver()
+    priorExSpec = []
 
-    prior_spec = []
-    for g in prior:
-        prior_spec.append('(assert %s)'%(toString(g)))
-    prior_spec = '\n'.join(prior_spec)
-    prior_spec = parse_smt2_string(prior_spec,decls=dict(VarTable))
-    prior_spec = And(prior_spec)
+    for guard in condsForPriorEx:
+        priorExSpec.append('(assert %s)'%(toString(guard)))
 
-    P_spec = []
-    for g in P:
-        P_spec.append('(assert %s)'%(toString(g)))
-    P_spec = '\n'.join(P_spec)
-    P_spec = parse_smt2_string(P_spec,decls=dict(VarTable))
-    P_spec = Not(And(P_spec))
+    priorExSpec = '\n'.join(priorExSpec)
+    priorExSpec = parse_smt2_string(priorExSpec,decls=dict(VarTable))
+    priorExSpec = And(priorExSpec)
 
-    solver.add(prior_spec)
-    solver.add(P_spec)
+    newExSpec = []
+
+    for guard in condsForNewEx:
+        newExSpec.append('(assert %s)'%(toString(guard)))
+
+    newExSpec = '\n'.join(newExSpec)
+    newExSpec = parse_smt2_string(newExSpec,decls=dict(VarTable))
+    newExSpec = Not(And(newExSpec))
+
+    solver.add(priorExSpec)
+    solver.add(newExSpec)
 
     res = solver.check()
     if res == unsat:
         return True
     else: 
         return False
+
+
+def dfsFindFunCall(funName, constraintClause):
+    if type(constraintClause) == list:
+        if constraintClause[0] == funName:
+            return constraintClause[1:]
+        else:
+            lres = dfsFindFunCall(funName, constraintClause[1])
+            if lres != None:
+                return lres
+            else: 
+                rres = dfsFindFunCall(funName, constraintClause[2])
+                return rres
+
+
+def toString(Expr,Bracket=True,ForceBracket=False):
+    if type(Expr)==str:
+        return Expr
+    if type(Expr)==tuple:
+        return (str(Expr[1])) # todo: immediate 
+    subexpr=[]
+    for expr in Expr:
+        if type(expr)==list:
+            subexpr.append(toString(expr, ForceBracket=ForceBracket))
+        elif type(expr)==tuple:
+            subexpr.append(str(expr[1]))
+        else:
+            subexpr.append(expr)
+
+
+    if not Bracket:
+        #print subexpr
+        return "%s"%(' '.join(subexpr))
+    # Avoid Redundant Brackets
+    if ForceBracket:
+        return "(%s)"%(' '.join(subexpr))
+    if len(subexpr)==1:
+        return "%s"%(' '.join(subexpr))
+    else:
+        return "(%s)"%(' '.join(subexpr))
+
+def DeclareVar(sort,name):
+    if sort=="Int":
+        return Int(name)
+    if sort=='Bool':
+        return Bool(name)
