@@ -29,34 +29,63 @@ if __name__ == '__main__':
     conds = []
     while True:
         guards = guardGenerator.next()
-
+        tot1 = tot2 = tot3 = tot4 = 0
+        totNum = 0
         for expr in exprs:
+            print('synthesis for', expr)
+            CESet = []
+            CEGuardsSet = []
             conds.append([])
 
             while True:
+                totNum += 1
+                t1 = time.time()
                 counterExample = check.checkCondsforExpr(conds, expr)
-
+                t2 = time.time()
                 if counterExample == None:
                     break
     
-                satGuards = []
+                satGuardsForNewCE = []
+                variableMap = {}
+                for d in counterExample.decls():
+                    variableMap[d.name()] = counterExample[d]
                 for guard in guards:
-                    if check.checkGuardForCounterExample(guard, counterExample):
-                        satGuards.append(guard)
-
-                filteredGuards = check.getSatGuardSet(satGuards, [], expr, conds)
-
-                if filteredGuards == []: # Conds are satisfied already
+                    if check.checkGuardForCounterExample(guard, variableMap):
+                        satGuardsForNewCE.append(guard)
+                t3 = time.time()
+                if check.checkGuardSet([], expr, conds) == None:
                     break
-
-                conds_ = []
-                for cond in conds[-1]:
-                    if check.canCover(filteredGuards, cond) == False:
-                        conds_.append(cond)
-
-                conds[-1] = copy.deepcopy(conds_)
-                conds[-1].append(filteredGuards)
-
+                if CESet == []:
+                    filteredGuards = check.getSatGuardSet(satGuardsForNewCE, [], expr, conds)
+                    CESet.append([counterExample])
+                    CEGuardsSet.append(filteredGuards)
+                    conds[-1].append(filteredGuards)
+                else:
+                    canCombine = 0
+                    for i in range(len(CESet)):
+                        ceset = CESet[i]
+                        satGuards = []
+                        ceset.append(counterExample)
+                        for guard in CEGuardsSet[i]:
+                            if check.checkGuardForCounterExample(guard, variableMap):
+                                satGuards.append(guard)
+                        if satGuards != []:
+                            if check.checkGuardSet(satGuards, expr, conds) == None:
+                                conds[-1][i] = satGuards
+                                canCombine = 1
+                                CEGuardsSet[i] = satGuards
+                                break
+                        ceset = ceset[:-1]
+                    if canCombine == 0:
+                        filteredGuards = check.getSatGuardSet(satGuardsForNewCE, [], expr, conds)
+                        CESet.append([counterExample])
+                        CEGuardsSet.append(filteredGuards)
+                        conds[-1].append(filteredGuards)               
+                t4 = time.time()
+                tot1 += t2 - t1
+                tot2 += t3 - t2
+                tot3 += t4 - t3
         print(check.synCondForOutputExpr(exprs, conds))
         print(time.time()-start)
+        print(tot1, tot2, tot3, totNum)
         exit()

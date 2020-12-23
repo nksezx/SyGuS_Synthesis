@@ -35,9 +35,14 @@ def genGuard(Type, Productions):
         for i in range(len(arithExpr)):
             for expr in arithExpr[i+1:]:
                 for prod in compProds:
-                    guards.append([prod[0]]+[arithExpr[i]]+[expr])
-                    if prod[0] != '=':
-                        guards.append([prod[0]]+[expr]+[arithExpr[i]])
+                    try:
+
+                        int(arithExpr[i])
+                        int(expr)
+                    except:
+                        guards.append([prod[0]]+[arithExpr[i]]+[expr])
+                        if prod[0] != '=':
+                            guards.append([prod[0]]+[expr]+[arithExpr[i]])
 
         yield guards
         numOfOp += 1

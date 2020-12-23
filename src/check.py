@@ -134,28 +134,23 @@ def checkCondsforExpr(condsforExp, expr):
         return solver.model()
 
 
-def checkGuardForCounterExample(guard, model):
+def checkGuardForCounterExample(guard, variableMap):
 
-    solver = Solver()
-    spec = []
-
-    # Add Constraints
-    spec.append('(assert %s)'%(toString(guard)))
-
-    for d in model.decls():
-        assignment = ['=', d.name(), str(model[d])]
-        spec.append('(assert %s)'%(toString(assignment)))
-
-    spec = '\n'.join(spec)
-    spec = parse_smt2_string(spec,decls=dict(VarTable))
-    solver.add(And(spec))
-
-    # Check
-    res = solver.check()
-    if res==unsat:
-        return False
+    #print(guard, model)
+    #print(variableMap.keys())
+    if guard[1] in variableMap.keys():
+        num1 = variableMap[guard[1]]
     else:
-        return True
+        num1 = int(guard[1])
+    
+    if guard[2] in variableMap.keys():
+        num2 = variableMap[guard[2]]
+    else:
+        num2 = int(guard[2])
+    tmp = guard[0]
+    if tmp == '=':
+        tmp = '=='
+    return eval(str(num1) + tmp + str(num2))
 
 
 # CE: counter-example
@@ -268,8 +263,8 @@ def synCondForOutputExpr(exprs, conds):
 
 
 # binary search a smallest satisfied guards set
-def getSatGuardSet(waitS, finalS, expr, guards):
-    if checkGuardSet(finalS, expr, guards) == None:
+def getSatGuardSet(waitS, finalS, expr, conds):
+    if checkGuardSet(finalS, expr, conds) == None:
         return []
     else:
         if len(waitS) == 1:
@@ -279,8 +274,8 @@ def getSatGuardSet(waitS, finalS, expr, guards):
         leftS = waitS[:mid]
         rightS = waitS[mid:]
 
-        leftResult = getSatGuardSet(leftS, finalS + rightS, expr, guards)
-        rightResult = getSatGuardSet(rightS, finalS + leftResult, expr, guards)
+        leftResult = getSatGuardSet(leftS, finalS + rightS, expr, conds)
+        rightResult = getSatGuardSet(rightS, finalS + leftResult, expr, conds)
         return leftResult + rightResult
 
 # Ex: example
