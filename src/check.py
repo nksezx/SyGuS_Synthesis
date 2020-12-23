@@ -154,7 +154,7 @@ def checkGuardForCounterExample(guard, variableMap):
 
 
 # CE: counter-example
-def checkGuardSet(guardsForCE, expr, condsforExpr):
+def checkGuardSet(guardsForCE, expr, condSpecs):
 
     solver = Solver()
     spec = []
@@ -177,24 +177,7 @@ def checkGuardSet(guardsForCE, expr, condsforExpr):
     spec = parse_smt2_string(spec,decls=dict(VarTable))
     solver.add(Not(And(spec)))
 
-    for cond in condsforExpr:
-        if cond != []:
-            condSpec = []
-
-            for orCond in cond:
-                condOrSpec = []
-
-                if orCond != []:
-                    for andCond in orCond:
-                        condOrSpec.append('(assert %s)'%(toString(andCond)))
-
-                    condOrSpec = '\n'.join(condOrSpec)
-                    condOrSpec = parse_smt2_string(condOrSpec, decls=dict(VarTable))
-
-                    condSpec.append(And(condOrSpec))
-
-                if condSpec != []:
-                    solver.add(Not(Or(*condSpec)))
+    solver.add(*condSpecs)
 
     # Check
     res = solver.check()
