@@ -136,17 +136,21 @@ def checkCondsforExpr(condsforExp, expr):
 
 def checkGuardForCounterExample(guard, variableMap):
 
-    #print(guard, model)
-    #print(variableMap.keys())
     if guard[1] in variableMap.keys():
         num1 = variableMap[guard[1]]
     else:
-        num1 = int(guard[1])
+        try:
+            num1 = int(guard[1])
+        except:
+            return False
     
     if guard[2] in variableMap.keys():
         num2 = variableMap[guard[2]]
     else:
-        num2 = int(guard[2])
+        try:
+            num2 = int(guard[2])
+        except:
+            return False
     tmp = guard[0]
     if tmp == '=':
         tmp = '=='
