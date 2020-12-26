@@ -40,7 +40,7 @@ def genExpr(Type, Productions):
 
 
 def biSearch(R, finalR):
-    if check.checkExpr(finalR) != None:
+    if not check.checkExpr(finalR):
         if len(R) == 1:
             return R
 
@@ -62,6 +62,7 @@ def getExpr(Type, Productions):
 
     while True:
         exprSet.extend(exprGenerator.next())
+        if not check.checkExpr(exprSet):
+            continue
         finalExprSet = biSearch(exprSet, [])
-        if finalExprSet != []:
-            return finalExprSet
+        return finalExprSet

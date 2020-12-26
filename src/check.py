@@ -67,26 +67,31 @@ def checkExpr(ExprSet):
     specList = []
     solver = Solver()
 
-    # Add constraints
     for constraint in Constraints:
         specList.append('(assert %s)'%(toString(constraint[1:])))
+
+        for expr in ExprSet:
+            FunDefStr = FuncDefineStr[:-1]+' '+toString(expr)+FuncDefineStr[-1]
+            specList.insert(0, FunDefStr)
+        
+            spec='\n'.join(specList)
+            spec = parse_smt2_string(spec,decls=dict(VarTable))
+            solver.push()
+            solver.add(Not(And(spec)))
+
+            res = solver.check()
+            solver.pop()
+
+            if res == unsat:
+                break
+            else:
+                specList.pop(0)
+
+        else: return False
+
+        specList = []
     
-    for expr in ExprSet:
-        FunDefStr = FuncDefineStr[:-1]+' '+expr+FuncDefineStr[-1]
-        specList.insert(0, FunDefStr)
-
-        spec='\n'.join(specList)
-        spec = parse_smt2_string(spec,decls=dict(VarTable))
-        solver.add(Not(And(spec)))
-
-        specList.pop(0)
-
-    # check
-    res = solver.check()
-    if res==unsat:
-        return None
-    else:
-        return solver.model()
+    return True
 
 
 def checkCondsforExpr(condsforExp, expr):
@@ -96,7 +101,7 @@ def checkCondsforExpr(condsforExp, expr):
 
     # Add constraints
     # Add Function Definition
-    FunDefStr = FuncDefineStr[:-1]+' '+expr+FuncDefineStr[-1]
+    FunDefStr = FuncDefineStr[:-1]+' '+toString(expr)+FuncDefineStr[-1]
     spec.append(FunDefStr)
 
     # Add Constraints
@@ -171,7 +176,7 @@ def checkGuardSet(guardsForCE, expr, condSpecs):
     solver.add(And(spec))
 
     spec = []
-    FunDefStr = FuncDefineStr[:-1]+' '+expr+FuncDefineStr[-1]
+    FunDefStr = FuncDefineStr[:-1]+' '+toString(expr)+FuncDefineStr[-1]
     spec.append(FunDefStr)
 
     for constraint in Constraints:
