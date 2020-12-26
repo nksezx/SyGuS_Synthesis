@@ -50,11 +50,9 @@ def biSearch(R, finalR):
 
         leftResult = biSearch(leftR, finalR + rightR)
         rightResult = biSearch(rightR, finalR + leftResult)
-        if check.checkExpr(rightResult) == None:
-            return rightResult
         return leftResult + rightResult
     else:
-        return finalR
+        return []
 
 
 def getExpr(Type, Productions):

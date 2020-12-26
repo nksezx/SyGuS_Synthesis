@@ -300,6 +300,9 @@ def canCover(condsForNewEx, condsForPriorEx):
 def dfsFindFunCall(funName, constraintClause):
     if type(constraintClause) == list:
         if constraintClause[0] == funName:
+            for par in constraintClause[1:]:
+                if type(par) == tuple:
+                    return
             return constraintClause[1:]
         else:
             lres = dfsFindFunCall(funName, constraintClause[1])
