@@ -8,6 +8,7 @@ Constraints=[]
 FunDefMap={}
 VarTable={}
 FunDefineStr = ''
+specForGenEp = []
 
 def extractBmExpr(bmExpr):
     for expr in bmExpr:
@@ -51,6 +52,7 @@ def extractBmExpr(bmExpr):
             else:
                 Productions[NTName].append(NT)
 
+    VarDecMap['ttt'] = ['declare-var', 'ttt', 'Int']
     # Declare Var
     for var in VarDecMap:
         VarTable[var]=DeclareVar(VarDecMap[var][2],var)
@@ -59,39 +61,44 @@ def extractBmExpr(bmExpr):
     FuncDefine = ['define-fun']+SynFunExpr[1:4] #copy function signature
     FuncDefineStr = toString(FuncDefine,ForceBracket = True) # use Force Bracket = True on function definition. MAGIC CODE. DO NOT MODIFY THE ARGUMENT ForceBracket = True.
 
+    for constraint in Constraints:
+        specForGenEp.append('(assert %s)'%(toString(constraint[1:])))
+
 
 # Check if the expression set satisfies constraints
 # ExprStr: [['+', 'x', 'x'], 'x']
 def checkExpr(ExprSet):
 
-    specList = []
     solver = Solver()
 
-    for constraint in Constraints:
-        specList.append('(assert %s)'%(toString(constraint[1:])))
+    constraintsForExpr = []
+    for expr in ExprSet:
+        FunDefStr = FuncDefineStr[:-1]+' '+toString(expr)+FuncDefineStr[-1]
+        specForGenEp.insert(0, FunDefStr)
 
-        for expr in ExprSet:
-            FunDefStr = FuncDefineStr[:-1]+' '+toString(expr)+FuncDefineStr[-1]
-            specList.insert(0, FunDefStr)
-        
-            spec='\n'.join(specList)
-            spec = parse_smt2_string(spec,decls=dict(VarTable))
-            solver.push()
-            solver.add(Not(And(spec)))
+        spec = '\n'.join(specForGenEp)
+        spec = parse_smt2_string(spec,decls=dict(VarTable))
 
-            res = solver.check()
-            solver.pop()
+        constraintsForExpr.append(And(spec))
+        specForGenEp.pop(0)
 
-            if res == unsat:
-                break
-            else:
-                specList.pop(0)
+    solver.add(Not(Or(*constraintsForExpr)))
 
-        else: return False
+    FunDefStr = FuncDefineStr[:-1]+' ttt'+FuncDefineStr[-1]
+    specForGenEp.insert(0, FunDefStr)
 
-        specList = []
-    
-    return True
+    spec = '\n'.join(specForGenEp)
+    spec = parse_smt2_string(spec,decls=dict(VarTable))
+
+    specForGenEp.pop(0)
+
+    solver.add(And(spec))
+
+    res = solver.check()
+    if res==unsat:
+        return True
+    else:
+        return False
 
 
 def checkCondsforExpr(condsforExp, expr):
