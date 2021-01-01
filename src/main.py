@@ -59,7 +59,7 @@ if __name__ == '__main__':
         tot1 = tot2 = tot3 = tot4 = 0
         totNum = 0
         for expr in exprs:
-            print('synthesis for', expr)
+            # print('synthesis for', expr)
             CESet = []
             CEGuardsSet = []
             conds.append([])
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                                 conds[-1][i] = filtered
                                 canCombine = 1
                                 CEGuardsSet[i] = satGuards
-                                print('combine success!')
+                                # print('combine success!')
                                 break
                         ceset = ceset[:-1]
                     if canCombine == 0:
@@ -117,6 +117,6 @@ if __name__ == '__main__':
                 tot2 += t3 - t2
                 tot3 += t4 - t3
         print(check.synCondForOutputExpr(exprs, conds))
-        print(time.time()-start)
-        print(tot1, tot2, tot3, totNum)
+        # print(time.time()-start)
+        # print(tot1, tot2, tot3, totNum)
         exit()
